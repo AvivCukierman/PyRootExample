@@ -1,57 +1,57 @@
 import ROOT as r
-r.gROOT.LoadMacro("giordon.h+")
-from numpy import save
 from optparse import OptionParser
 
 parser = OptionParser()
 
-parser.add_option("--inputDir", help="Directory containing input files",type=str, default="JZ1_EM_ClusterInfo")
-parser.add_option("--submitDir", help="Directory containing output files",type=str, default=".")
-parser.add_option("--numEvents", help="How many events to include (set to -1 for all events)",type=int, default=100000)
-parser.add_option("-i","--identifier", help="sample identifier",type=str, default="jz1_EM")
+parser.add_option("--inputDir", help="Directory containing input files",type=str, default="input")
+parser.add_option("--submitDir", help="Directory containing output files",type=str, default="output")
+parser.add_option("--numEvents", help="How many events to include (set to -1 for all events)",type=int, default=-1)
+parser.add_option("-i","--identifier", help="sample identifier",type=str, default="my_analysis")
+
+parser.add_option("--treeName", help="Name of Tree",type=str, default="oTree")
+parser.add_option("--jetBranchName", help="Name of sample jet branch",type=str, default="j0pt")
+parser.add_option("--clusterBranchName", help="Name of sample cluster branch",type=str, default="j0_clpt")
 
 (options, args) = parser.parse_args()
+
+if options.clusterBranchName: r.gROOT.LoadMacro("giordon.h+") #only necessary if we have vector<vector<...>> information
 
 import pdb
 def readRoot():
 
   import glob
-  filenamebase = '/u/at/acukierm/nfs/Voronoi_xAOD/JetLearningOut/'
-  #filenamebase = '/u/at/acukierm/nfs/Voronoi_xAOD/test/'
-  filenamemiddle = '/fetch/data-outputTree/'
-  #filenamemiddle = '/data-outputTree/'
-  #filenames = glob.glob(filenamebase+options.inputDir+filenamemiddle+'/sample-*.root')
-  filenames = glob.glob(filenamebase+options.inputDir+filenamemiddle+'/sample-0.root')
-  tree = r.TChain('oTree')
+  filenames = glob.glob(options.inputDir+'/*.root')
+  print 'Searching for ROOT files in:'
+  print options.inputDir+'/*.root'
+  if len(filenames)==0: raise IOError('No ROOT files found!')
+  tree = r.TChain(options.treeName)
   for filename in filenames:
     #statinfo = os.stat(filename)
-    #if statinfo.st_size < 10000: continue #sometimes batch jobs fail
+    #if statinfo.st_size < 10000: continue #if you want to remove failed jobs
     print '== Reading in '+filename+' =='
     tree.Add(filename) 
 
   j0pt_arr = []
 
-  #j0_cleta_branch = r.std.vector(r.std.vector('double'))()
-  #tree.SetBranchAddress("j0_cleta",j0_cleta_branch)
   nentries = tree.GetEntries()
   print 'Number of events: '+str(nentries)
   for jentry in xrange(nentries):
       if jentry==options.numEvents: break
       tree.GetEntry(jentry)
-      j0_clpt_branch = getattr(tree,'j0_clpt')
-      print j0_clpt_branch[0][0]
-      j0pt_branch = getattr(tree,'jnoarea0pt')
-      j0_cleta_branch = getattr(tree,'j0_cleta')
-      j0eta_branch = getattr(tree,'j0eta')
-      j0_clphi_branch = getattr(tree,'j0_clphi')
-      j0phi_branch = getattr(tree,'j0phi')
       print 'Event '+str(tree.event_number)
-      for cl_pts,j0pt,cl_etas,j0eta,cl_phis,j0phi in zip(j0_clpt_branch,j0pt_branch,j0_cleta_branch,j0eta_branch,j0_clphi_branch,j0phi_branch):
-        print 'Jet: '+str(j0pt)+','+str(j0eta)+','+str(j0phi)
+      j0pt_branch = getattr(tree,options.jetBranchName)
+      j0_clpt_branch = getattr(tree,options.clusterBranchName)
+      print j0_clpt_branch[0][0]
+      for j0pt,cl_pts in zip(j0pt_branch,j0_clpt_branch):
+        print 'Jet: '+str(j0pt)
         j0pt_arr.append(j0pt)
-        for cl_pt,cl_eta,cl_phi in zip(cl_pts,cl_etas,cl_phis):
-          print 'Cluster: '+str(cl_pt)+','+str(cl_eta)+','+str(cl_phi)
+        for cl_pt in cl_pts:
+          print 'Cluster: '+str(cl_pt)
 
-  save(options.submitDir+'/recopts_j0_'+options.identifier,j0pt_arr)
+  #from numpy import save
+  #save(options.submitDir+'/recopts_j0_'+options.identifier,j0pt_arr) #to save the information as a numpy array
 
-readRoot()
+  return j0pt_arr
+
+jetpt_data = readRoot()
+# do whatever
