@@ -10,11 +10,13 @@ parser.add_option("-i","--identifier", help="sample identifier",type=str, defaul
 
 parser.add_option("--treeName", help="Name of Tree",type=str, default="oTree")
 parser.add_option("--jetBranchName", help="Name of sample jet branch",type=str, default="j0pt")
-parser.add_option("--clusterBranchName", help="Name of sample cluster branch",type=str, default="j0_clpt")
+parser.add_option("--clusterBranchName", help="Name of sample cluster branch",type=str, default=None)
 
 (options, args) = parser.parse_args()
 
-if options.clusterBranchName: r.gROOT.LoadMacro("giordon.h+") #only necessary if we have vector<vector<...>> information
+hasClusterInfo = False
+if options.clusterBranchName: hasClusterInfo = True
+if hasClusterInfo: r.gROOT.LoadMacro("giordon.h+") #only necessary if we have vector<vector<...>> information
 
 import pdb
 def readRoot():
@@ -38,15 +40,18 @@ def readRoot():
   for jentry in xrange(nentries):
       if jentry==options.numEvents: break
       tree.GetEntry(jentry)
-      print 'Event '+str(tree.event_number)
+      print 'Event '+str(jentry)
       j0pt_branch = getattr(tree,options.jetBranchName)
-      j0_clpt_branch = getattr(tree,options.clusterBranchName)
-      print j0_clpt_branch[0][0]
-      for j0pt,cl_pts in zip(j0pt_branch,j0_clpt_branch):
+      if hasClusterInfo:
+        j0_clpt_branch = getattr(tree,options.clusterBranchName)
+        print j0_clpt_branch[0][0]
+      for ij,j0pt in enumerate(j0pt_branch):
         print 'Jet: '+str(j0pt)
         j0pt_arr.append(j0pt)
-        for cl_pt in cl_pts:
-          print 'Cluster: '+str(cl_pt)
+        if hasClusterInfo:
+          cl_pts = j0_clpt_branch[ij]
+          for cl_pt in cl_pts:
+            print 'Cluster: '+str(cl_pt)
 
   #from numpy import save
   #save(options.submitDir+'/recopts_j0_'+options.identifier,j0pt_arr) #to save the information as a numpy array
